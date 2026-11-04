@@ -1,0 +1,14 @@
+# Go
+*.exe
+*.test
+*.out
+
+# Build output
+/build/
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
