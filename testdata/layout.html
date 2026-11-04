@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .Title }}</title>
+    {{ if .Description }}
+    <meta name="description" content="{{ .Description }}">
+    {{ end }}
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/about.html">About</a>
+      </nav>
+    </header>
+
+    <main>
+      {{ .Content }}
+    </main>
+
+    <footer>
+      <p>Built with ssg</p>
+    </footer>
+  </body>
+</html>
