@@ -9,6 +9,13 @@
     {{ end }}
     <link rel="stylesheet" href="/css/style.css">
   </head>
+  <script>
+  const eventSource = new EventSource("/__reload");
+
+  eventSource.onmessage = () => {
+    window.location.reload();
+  };
+</script>
   <body>
     <header>
       <nav>
