@@ -191,7 +191,7 @@ func serveCmd(args []string) {
 		}
 	}()
 
-	http.Handle("/", http.FileServer(http.Dir(*output)))
+	http.Handle("/", notFoundHandler(*output))
 	http.HandleFunc("/__reload", reload.handleReload)
 
 	fmt.Printf("serving %s at http://localhost%s\n", *output, *addr)
@@ -199,6 +199,23 @@ func serveCmd(args []string) {
 	if err := http.ListenAndServe(*addr, nil); err != nil {
 		fmt.Fprintln(os.Stderr, "server failed:", err)
 		os.Exit(1)
+	}
+}
+
+func notFoundHandler(outputDir string) http.HandlerFunc {
+	fileServer := http.FileServer(http.Dir(outputDir))
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(outputDir, filepath.Clean(r.URL.Path))
+
+		info, err := os.Stat(path)
+
+		if err != nil || info.IsDir() {
+			http.ServeFile(w, r, filepath.Join(outputDir, "404.html"))
+			return
+		}
+
+		fileServer.ServeHTTP(w, r)
 	}
 }
 
