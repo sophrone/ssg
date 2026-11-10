@@ -16,6 +16,7 @@ type Options struct {
 	SourceDir string
 	OutputDir string
 	Layout    string
+	StaticDir string
 }
 
 func Run(opts Options) error {
@@ -30,6 +31,9 @@ func Run(opts Options) error {
 
 	if err := os.MkdirAll(opts.OutputDir, 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
+	}
+	if err := copyStatic(opts.StaticDir, opts.OutputDir); err != nil {
+		return fmt.Errorf("copy static assets: %w", err)
 	}
 
 	return filepath.WalkDir(opts.SourceDir, func(path string, entry fs.DirEntry, err error) error {
@@ -94,4 +98,55 @@ func renderPage(layout *template.Template, p *page.Page, outputPath string) erro
 	defer file.Close()
 
 	return layout.Execute(file, data)
+}
+func copyStatic(sourceDir, outputDir string) error {
+	if sourceDir == "" {
+		return nil
+	}
+
+	info, err := os.Stat(sourceDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return fmt.Errorf("check static directory: %w", err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", sourceDir)
+	}
+
+	return filepath.WalkDir(sourceDir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return err
+		}
+
+		destination := filepath.Join(outputDir, rel)
+
+		if entry.IsDir() {
+			return os.MkdirAll(destination, 0o755)
+		}
+
+		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			return err
+		}
+
+		source, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read static file %s: %w", path, err)
+		}
+
+		if err := os.WriteFile(destination, source, 0o644); err != nil {
+			return fmt.Errorf("write static file %s: %w", destination, err)
+		}
+
+		fmt.Printf("copied %s -> %s\n", path, destination)
+		return nil
+	})
 }

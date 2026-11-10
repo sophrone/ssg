@@ -12,7 +12,7 @@ import (
 func main() {
 	if len(os.Args) < 2 {
 		usage()
-
+		os.Exit(1)
 	}
 
 	switch os.Args[1] {
@@ -35,6 +35,7 @@ func buildCmd(args []string) {
 	source := flags.String("src", ".", "source directory containing Markdown files")
 	output := flags.String("out", "build", "output directory")
 	layout := flags.String("layout", "layout.html", "HTML layout template")
+	static := flags.String("static", "static", "static assets directory")
 
 	if err := flags.Parse(args); err != nil {
 		os.Exit(1)
@@ -44,6 +45,7 @@ func buildCmd(args []string) {
 		SourceDir: *source,
 		OutputDir: *output,
 		Layout:    *layout,
+		StaticDir: *static,
 	}
 
 	if err := build.Run(opts); err != nil {
@@ -78,9 +80,10 @@ Usage:
   ssg serve [flags]   Serve the generated site
 
 Build flags:
-  -src string     Source directory containing Markdown files
-  -out string     Output directory
-  -layout string  HTML layout template
+  -src string      Source directory containing Markdown files
+  -out string      Output directory
+  -layout string   HTML layout template
+  -static string   Static assets directory
 
 Serve flags:
   -out string   Directory to serve
