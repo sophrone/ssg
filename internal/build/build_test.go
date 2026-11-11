@@ -13,19 +13,38 @@ func TestRun(t *testing.T) {
 	sourceDir := t.TempDir()
 	outputDir := t.TempDir()
 	layoutPath := filepath.Join(sourceDir, "layout.html")
+	configPath := filepath.Join(sourceDir, "config.yml")
 
 	layout := `<!doctype html>
 <html>
   <head>
-    <title>{{ .Title }}</title>
+    <title>{{ if .Title }}{{ .Title }} | {{ end }}{{ .SiteTitle }}</title>
   </head>
   <body>
+    <nav>
+      {{ range .Navigation }}
+      <a href="{{ .URL }}">{{ .Title }}</a>
+      {{ end }}
+    </nav>
+
     <main>{{ .Content }}</main>
   </body>
 </html>`
 
 	if err := os.WriteFile(layoutPath, []byte(layout), 0o644); err != nil {
 		t.Fatalf("write layout: %v", err)
+	}
+
+	configYAML := `title: "Test Site"
+base_url: "https://example.com"
+
+navigation:
+  - title: "Home"
+    url: "/"
+`
+
+	if err := os.WriteFile(configPath, []byte(configYAML), 0o644); err != nil {
+		t.Fatalf("write config.yml: %v", err)
 	}
 
 	index := `---
@@ -56,9 +75,11 @@ This page should not be generated.`
 	}
 
 	opts := build.Options{
-		SourceDir: sourceDir,
-		OutputDir: outputDir,
-		Layout:    layoutPath,
+		SourceDir:  sourceDir,
+		OutputDir:  outputDir,
+		Layout:     layoutPath,
+		StaticDir:  "",
+		ConfigPath: configPath,
 	}
 
 	if err := build.Run(opts); err != nil {
@@ -70,8 +91,12 @@ This page should not be generated.`
 		t.Fatalf("read generated index.html: %v", err)
 	}
 
-	if !strings.Contains(string(indexHTML), "<title>Home</title>") {
+	if !strings.Contains(string(indexHTML), "<title>Home | Test Site</title>") {
 		t.Errorf("index.html does not contain expected title: %q", string(indexHTML))
+	}
+
+	if !strings.Contains(string(indexHTML), `<a href="/">Home</a>`) {
+		t.Errorf("index.html does not contain configured navigation link: %q", string(indexHTML))
 	}
 
 	if !strings.Contains(string(indexHTML), "<h1>Welcome</h1>") {
