@@ -206,16 +206,30 @@ func notFoundHandler(outputDir string) http.HandlerFunc {
 	fileServer := http.FileServer(http.Dir(outputDir))
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		path := filepath.Join(outputDir, filepath.Clean(r.URL.Path))
+		requestedPath := filepath.Clean(r.URL.Path)
+
+		if requestedPath == "." || requestedPath == "/" {
+			requestedPath = "/index.html"
+		}
+
+		path := filepath.Join(outputDir, requestedPath)
 
 		info, err := os.Stat(path)
 
-		if err != nil || info.IsDir() {
-			http.ServeFile(w, r, filepath.Join(outputDir, "404.html"))
+		if err == nil && !info.IsDir() {
+			fileServer.ServeHTTP(w, r)
 			return
 		}
 
-		fileServer.ServeHTTP(w, r)
+		htmlPath := path + ".html"
+		info, err = os.Stat(htmlPath)
+
+		if err == nil && !info.IsDir() {
+			http.ServeFile(w, r, htmlPath)
+			return
+		}
+
+		http.ServeFile(w, r, filepath.Join(outputDir, "404.html"))
 	}
 }
 
