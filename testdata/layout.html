@@ -12,9 +12,10 @@
   <body>
     <header>
       <nav>
-        <a href="/">Home</a>
-        <a href="/about">About</a>
-      </nav>
+  {{ range .Navigation }}
+  <a href="{{ .URL }}">{{ .Title }}</a>
+  {{ end }}
+</nav>
     </header>
 
     <main>

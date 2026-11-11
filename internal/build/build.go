@@ -25,18 +25,11 @@ func Run(opts Options) error {
 		return fmt.Errorf("load layout: %w", err)
 	}
 
-	if err := os.RemoveAll(opts.OutputDir); err != nil {
-		return fmt.Errorf("clean output directory: %w", err)
-	}
+	var pages []*page.Page
+	var navigation []page.NavigationLink
 
-	if err := os.MkdirAll(opts.OutputDir, 0o755); err != nil {
-		return fmt.Errorf("create output directory: %w", err)
-	}
-	if err := copyStatic(opts.StaticDir, opts.OutputDir); err != nil {
-		return fmt.Errorf("copy static assets: %w", err)
-	}
-
-	return filepath.WalkDir(opts.SourceDir, func(path string, entry fs.DirEntry, err error) error {
+	// Collect every page before rendering any of them.
+	err = filepath.WalkDir(opts.SourceDir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -61,19 +54,48 @@ func Run(opts Options) error {
 
 		rel, err := filepath.Rel(opts.SourceDir, path)
 		if err != nil {
-			return err
+			return fmt.Errorf("get relative path for %s: %w", path, err)
 		}
 
 		outputName := strings.TrimSuffix(rel, filepath.Ext(rel)) + ".html"
-		outputPath := filepath.Join(opts.OutputDir, outputName)
+		p.OutputPath = filepath.Join(opts.OutputDir, outputName)
 
-		if err := renderPage(layout, p, outputPath); err != nil {
-			return err
+		pages = append(pages, p)
+
+		if !p.FrontMatter.HideFromNavigation {
+			navigation = append(navigation, navigationLink(p, outputName))
 		}
 
-		fmt.Printf("built %s -> %s\n", path, outputPath)
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("collect pages: %w", err)
+	}
+
+	if err := os.RemoveAll(opts.OutputDir); err != nil {
+		return fmt.Errorf("clean output directory: %w", err)
+	}
+
+	if err := os.MkdirAll(opts.OutputDir, 0o755); err != nil {
+		return fmt.Errorf("create output directory: %w", err)
+	}
+
+	if err := copyStatic(opts.StaticDir, opts.OutputDir); err != nil {
+		return fmt.Errorf("copy static assets: %w", err)
+	}
+
+	// Every page receives the same complete navigation.
+	for _, p := range pages {
+		p.Navigation = navigation
+
+		if err := renderPage(layout, p, p.OutputPath); err != nil {
+			return fmt.Errorf("render %s: %w", p.SourcePath, err)
+		}
+
+		fmt.Printf("built %s -> %s\n", p.SourcePath, p.OutputPath)
+	}
+
+	return nil
 }
 
 func renderPage(layout *template.Template, p *page.Page, outputPath string) error {
@@ -81,10 +103,12 @@ func renderPage(layout *template.Template, p *page.Page, outputPath string) erro
 		Title       string
 		Description string
 		Content     template.HTML
+		Navigation  []page.NavigationLink
 	}{
 		Title:       p.FrontMatter.Title,
 		Description: p.FrontMatter.Description,
 		Content:     template.HTML(p.HTML),
+		Navigation:  p.Navigation,
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
@@ -95,10 +119,33 @@ func renderPage(layout *template.Template, p *page.Page, outputPath string) erro
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	return layout.Execute(file, data)
+	if err := layout.Execute(file, data); err != nil {
+		file.Close()
+		return err
+	}
+
+	return file.Close()
 }
+
+func navigationLink(p *page.Page, outputName string) page.NavigationLink {
+	url := "/" + filepath.ToSlash(outputName)
+
+	switch {
+	case url == "/index.html":
+		url = "/"
+	case strings.HasSuffix(url, "/index.html"):
+		url = strings.TrimSuffix(url, "index.html")
+	default:
+		url = strings.TrimSuffix(url, ".html")
+	}
+
+	return page.NavigationLink{
+		Title: p.FrontMatter.Title,
+		URL:   url,
+	}
+}
+
 func copyStatic(sourceDir, outputDir string) error {
 	if sourceDir == "" {
 		return nil

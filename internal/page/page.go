@@ -3,10 +3,11 @@ package page
 import "time"
 
 type FrontMatter struct {
-	Title       string    `yaml:"title"`
-	Description string    `yaml:"description"`
-	Date        time.Time `yaml:"date"`
-	Draft       bool      `yaml:"draft"`
+	Title              string    `yaml:"title"`
+	Description        string    `yaml:"description"`
+	Date               time.Time `yaml:"date"`
+	Draft              bool      `yaml:"draft"`
+	HideFromNavigation bool      `yaml:"hide_from_navigation"`
 }
 
 type Page struct {
@@ -15,4 +16,10 @@ type Page struct {
 	FrontMatter FrontMatter
 	Markdown    []byte
 	HTML        []byte
+	Navigation  []NavigationLink
+}
+
+type NavigationLink struct {
+	Title string
+	URL   string
 }
