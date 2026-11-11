@@ -8,25 +8,31 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sophrone/ssg/internal/config"
 	"github.com/sophrone/ssg/internal/markdown"
 	"github.com/sophrone/ssg/internal/page"
 )
 
 type Options struct {
-	SourceDir string
-	OutputDir string
-	Layout    string
-	StaticDir string
+	SourceDir  string
+	OutputDir  string
+	Layout     string
+	StaticDir  string
+	ConfigPath string
 }
 
 func Run(opts Options) error {
+	config, err := config.Load(opts.ConfigPath)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
 	layout, err := template.ParseFiles(opts.Layout)
 	if err != nil {
 		return fmt.Errorf("load layout: %w", err)
 	}
 
 	var pages []*page.Page
-	var navigation []page.NavigationLink
 
 	// Collect every page before rendering any of them.
 	err = filepath.WalkDir(opts.SourceDir, func(path string, entry fs.DirEntry, err error) error {
@@ -62,10 +68,6 @@ func Run(opts Options) error {
 
 		pages = append(pages, p)
 
-		if !p.FrontMatter.HideFromNavigation {
-			navigation = append(navigation, navigationLink(p, outputName))
-		}
-
 		return nil
 	})
 	if err != nil {
@@ -86,9 +88,9 @@ func Run(opts Options) error {
 
 	// Every page receives the same complete navigation.
 	for _, p := range pages {
-		p.Navigation = navigation
+		p.Navigation = config.Navigation
 
-		if err := renderPage(layout, p, p.OutputPath); err != nil {
+		if err := renderPage(layout, p, p.OutputPath, config.Title); err != nil {
 			return fmt.Errorf("render %s: %w", p.SourcePath, err)
 		}
 
@@ -98,17 +100,19 @@ func Run(opts Options) error {
 	return nil
 }
 
-func renderPage(layout *template.Template, p *page.Page, outputPath string) error {
+func renderPage(layout *template.Template, p *page.Page, outputPath string, siteTitle string) error {
 	data := struct {
 		Title       string
 		Description string
 		Content     template.HTML
 		Navigation  []page.NavigationLink
+		SiteTitle   string
 	}{
 		Title:       p.FrontMatter.Title,
 		Description: p.FrontMatter.Description,
 		Content:     template.HTML(p.HTML),
 		Navigation:  p.Navigation,
+		SiteTitle:   siteTitle,
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {

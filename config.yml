@@ -1,0 +1,8 @@
+title: "The Band"
+base_url: "https://example.com"
+
+navigation:
+  - title: "The Band"
+    url: "/"
+  - title: "About"
+    url: "/about"
