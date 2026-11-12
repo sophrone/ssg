@@ -99,16 +99,20 @@ func buildCmd(args []string) {
 	output := flags.String("out", "build", "output directory")
 	layout := flags.String("layout", "layout.html", "HTML layout template")
 	static := flags.String("static", "static", "static assets directory")
+	configPath := flags.String("config", "config.yml", "site configuration file")
+	posts := flags.String("posts", "posts", "blog posts directory")
 
 	if err := flags.Parse(args); err != nil {
 		os.Exit(1)
 	}
 
 	opts := build.Options{
-		SourceDir: *source,
-		OutputDir: *output,
-		Layout:    *layout,
-		StaticDir: *static,
+		SourceDir:  *source,
+		OutputDir:  *output,
+		Layout:     *layout,
+		StaticDir:  *static,
+		ConfigPath: *configPath,
+		PostsDir:   *posts,
 	}
 
 	if err := build.Run(opts); err != nil {
@@ -124,6 +128,8 @@ func serveCmd(args []string) {
 	output := flags.String("out", "build", "directory to serve")
 	layout := flags.String("layout", "layout.html", "HTML layout template")
 	static := flags.String("static", "static", "static assets directory")
+	configPath := flags.String("config", "config.yml", "site configuration file")
+	posts := flags.String("posts", "posts", "blog posts directory")
 	addr := flags.String("addr", ":8080", "HTTP listen address")
 
 	if err := flags.Parse(args); err != nil {
@@ -131,10 +137,12 @@ func serveCmd(args []string) {
 	}
 
 	opts := build.Options{
-		SourceDir: *source,
-		OutputDir: *output,
-		Layout:    *layout,
-		StaticDir: *static,
+		SourceDir:  *source,
+		OutputDir:  *output,
+		Layout:     *layout,
+		StaticDir:  *static,
+		ConfigPath: *configPath,
+		PostsDir:   *posts,
 	}
 
 	if err := build.Run(opts); err != nil {
@@ -154,6 +162,7 @@ func serveCmd(args []string) {
 	watchPaths := []string{
 		*source,
 		*static,
+		*posts,
 		filepath.Dir(*layout),
 	}
 
@@ -245,11 +254,15 @@ Build flags:
   -out string      Output directory
   -layout string   HTML layout template
   -static string   Static assets directory
+  -config string   Site configuration file
+  -posts string    Blog posts directory
 
 Serve flags:
   -src string      Source directory containing Markdown files
   -out string      Directory to serve
   -layout string   HTML layout template
   -static string   Static assets directory
+  -config string   Site configuration file
+  -posts string    Blog posts directory
   -addr string     HTTP listen address`)
 }

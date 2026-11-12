@@ -23,3 +23,10 @@ type NavigationLink struct {
 	Title string
 	URL   string
 }
+
+type PostSummary struct {
+	Title       string
+	Description string
+	URL         string
+	Date        time.Time
+}

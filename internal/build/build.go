@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/sophrone/ssg/internal/config"
@@ -19,6 +20,7 @@ type Options struct {
 	Layout     string
 	StaticDir  string
 	ConfigPath string
+	PostsDir   string
 }
 
 func Run(opts Options) error {
@@ -32,7 +34,10 @@ func Run(opts Options) error {
 		return fmt.Errorf("load layout: %w", err)
 	}
 
+	postsDirName := filepath.Base(opts.PostsDir)
+
 	var pages []*page.Page
+	var posts []*page.Page
 
 	// Collect every page before rendering any of them.
 	err = filepath.WalkDir(opts.SourceDir, func(path string, entry fs.DirEntry, err error) error {
@@ -68,6 +73,10 @@ func Run(opts Options) error {
 
 		pages = append(pages, p)
 
+		if isPost(rel, postsDirName) {
+			posts = append(posts, p)
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -97,7 +106,82 @@ func Run(opts Options) error {
 		fmt.Printf("built %s -> %s\n", p.SourcePath, p.OutputPath)
 	}
 
+	if err := writePostsIndex(layout, posts, opts.OutputDir, config); err != nil {
+		return fmt.Errorf("write posts index: %w", err)
+	}
+
 	return nil
+}
+
+func isPost(relativePath, postsDirName string) bool {
+	return strings.HasPrefix(filepath.ToSlash(relativePath), postsDirName+"/")
+}
+
+func writePostsIndex(layout *template.Template, posts []*page.Page, outputDir string, config *config.Config) error {
+	summaries := make([]page.PostSummary, 0, len(posts))
+
+	for _, post := range posts {
+		summaries = append(summaries, postSummary(post))
+	}
+
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].Date.After(summaries[j].Date)
+	})
+
+	data := struct {
+		Title       string
+		Description string
+		Content     template.HTML
+		Navigation  []page.NavigationLink
+		SiteTitle   string
+		Posts       []page.PostSummary
+	}{
+		Title:       "Posts",
+		Description: "All blog posts",
+		Content:     template.HTML("<h1>Posts</h1>"),
+		Navigation:  config.Navigation,
+		SiteTitle:   config.Title,
+		Posts:       summaries,
+	}
+
+	outputPath := filepath.Join(outputDir, "posts.html")
+
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return err
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+
+	if err := layout.Execute(file, data); err != nil {
+		file.Close()
+		return err
+	}
+
+	if err := file.Close(); err != nil {
+		return err
+	}
+
+	fmt.Printf("built posts index -> %s\n", outputPath)
+	return nil
+}
+
+func postSummary(post *page.Page) page.PostSummary {
+	rel, err := filepath.Rel("build", post.OutputPath)
+	if err != nil {
+		rel = filepath.Base(post.OutputPath)
+	}
+
+	url := "/" + filepath.ToSlash(strings.TrimSuffix(rel, filepath.Ext(rel)))
+
+	return page.PostSummary{
+		Title:       post.FrontMatter.Title,
+		Description: post.FrontMatter.Description,
+		URL:         url,
+		Date:        post.FrontMatter.Date,
+	}
 }
 
 func renderPage(layout *template.Template, p *page.Page, outputPath string, siteTitle string) error {
