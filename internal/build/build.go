@@ -181,6 +181,7 @@ func postSummary(post *page.Page) page.PostSummary {
 		Description: post.FrontMatter.Description,
 		URL:         url,
 		Date:        post.FrontMatter.Date,
+		DateText:    post.FrontMatter.Date.Format("January 2, 2006"),
 	}
 }
 
@@ -191,12 +192,14 @@ func renderPage(layout *template.Template, p *page.Page, outputPath string, site
 		Content     template.HTML
 		Navigation  []page.NavigationLink
 		SiteTitle   string
+		Posts       []page.PostSummary
 	}{
 		Title:       p.FrontMatter.Title,
 		Description: p.FrontMatter.Description,
 		Content:     template.HTML(p.HTML),
 		Navigation:  p.Navigation,
 		SiteTitle:   siteTitle,
+		Posts:       []page.PostSummary{},
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {

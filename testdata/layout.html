@@ -18,9 +18,23 @@
 </nav>
     </header>
 
-    <main>
-      {{ .Content }}
-    </main>
+   <main>
+  {{ .Content }}
+
+  {{ if .Posts }}
+  <ul>
+    {{ range .Posts }}
+    <li>
+      <a href="{{ .URL }}">{{ .Title }}</a>
+      <p><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .DateText }}</time></p>
+      {{ if .Description }}
+      <p>{{ .Description }}</p>
+      {{ end }}
+    </li>
+    {{ end }}
+  </ul>
+  {{ end }}
+</main>
 
     <footer>
       <p>Built with ssg</p>

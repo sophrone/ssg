@@ -29,4 +29,5 @@ type PostSummary struct {
 	Description string
 	URL         string
 	Date        time.Time
+	DateText    string
 }
