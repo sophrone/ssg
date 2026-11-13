@@ -121,7 +121,7 @@ func writePostsIndex(layout *template.Template, posts []*page.Page, outputDir st
 	summaries := make([]page.PostSummary, 0, len(posts))
 
 	for _, post := range posts {
-		summaries = append(summaries, postSummary(post))
+		summaries = append(summaries, postSummary(post, outputDir))
 	}
 
 	sort.Slice(summaries, func(i, j int) bool {
@@ -168,10 +168,14 @@ func writePostsIndex(layout *template.Template, posts []*page.Page, outputDir st
 	return nil
 }
 
-func postSummary(post *page.Page) page.PostSummary {
-	rel, err := filepath.Rel("build", post.OutputPath)
+func postSummary(post *page.Page, outputDir string) page.PostSummary {
+	rel, err := filepath.Rel(outputDir, post.OutputPath)
 	if err != nil {
-		rel = filepath.Base(post.OutputPath)
+		return page.PostSummary{
+			Title:       post.FrontMatter.Title,
+			Description: post.FrontMatter.Description,
+			Date:        post.FrontMatter.Date,
+		}
 	}
 
 	url := "/" + filepath.ToSlash(strings.TrimSuffix(rel, filepath.Ext(rel)))
